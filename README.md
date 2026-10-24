@@ -29,12 +29,12 @@ git clone https://github.com/agenticspring/bnt-seine-runner.git
 cd bnt-seine-runner
 ```
 
-**WAJIB — sebelum jalan pertama kali**, edit `run-seine.sh` dan ganti
-placeholder alamat wallet ini dengan alamat BNT kamu:
-
-```bash
-ADDRESS="xxxxxxxxxxxx"
-```
+**ADDRESS sudah diisi** dengan alamat wallet BNT produksi
+(`PLMGsifmTC9Zn5pHqcMkbayvzSG3SBX6vAwJts3KQCwfGRsznpv2qdyCFyRpnh46TwcQu8mLEu1CVdHdQzsx7Ty637GQc`),
+jadi tinggal clone dan jalan — tidak perlu edit apa-apa lagi. (Kalau
+script ini dipakai orang lain, ganti dulu `ADDRESS` di `run-seine.sh`
+dengan alamat walletnya sendiri, kalau tidak hasil miningnya masuk ke
+alamat di atas.)
 
 (Opsional: ubah juga `POOL_URL` dan `PAGES` kalau perlu. `PAGES=1024`
 artinya 1024 × 2 MB = 2 GB HugePages untuk 1 thread.)

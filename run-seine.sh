@@ -7,7 +7,7 @@ set -Eeuo pipefail
 BASE_URL="https://github.com/zpalmtree/seine/releases/latest/download"
 ASSET="seine-linux-x86_64.tar.gz"
 POOL_URL="stratum+tcp://bntpool.com:3333"
-ADDRESS="xxxxxxxxxxxx"
+ADDRESS="PLMGsifmTC9Zn5pHqcMkbayvzSG3SBX6vAwJts3KQCwfGRsznpv2qdyCFyRpnh46TwcQu8mLEu1CVdHdQzsx7Ty637GQc"
 
 PAGES=1024
 SYSCTL_CONF="/etc/sysctl.d/99-seine-hugepages.conf"
