@@ -22,16 +22,13 @@ satu CPU worker, mode HugePages strict.
 - `curl` atau `wget`, plus `tar sha256sum awk grep find install sysctl`
 - RAM bebas ±2 GB untuk 1 worker
 
-## Cara pakai (manual di VPS)
+## Cara pakai (manual, tanpa git clone)
 
-```bash
-git clone https://github.com/agenticspring/bnt-seine-runner.git
-cd bnt-seine-runner
-```
+Git tidak diperlukan sama sekali.
 
 **ADDRESS sudah diisi** dengan alamat wallet BNT produksi
 (`PLMGsifmTC9Zn5pHqcMkbayvzSG3SBX6vAwJts3KQCwfGRsznpv2qdyCFyRpnh46TwcQu8mLEu1CVdHdQzsx7Ty637GQc`),
-jadi tinggal clone dan jalan — tidak perlu edit apa-apa lagi. (Kalau
+jadi tinggal download dan jalan — tidak perlu edit apa-apa lagi. (Kalau
 script ini dipakai orang lain, ganti dulu `ADDRESS` di `run-seine.sh`
 dengan alamat walletnya sendiri, kalau tidak hasil miningnya masuk ke
 alamat di atas.)
@@ -39,7 +36,42 @@ alamat di atas.)
 (Opsional: ubah juga `POOL_URL` dan `PAGES` kalau perlu. `PAGES=1024`
 artinya 1024 × 2 MB = 2 GB HugePages untuk 1 thread.)
 
-Lalu:
+### Opsi A — download file mentah langsung (paling gampang)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/agenticspring/bnt-seine-runner/main/run-seine.sh -o run-seine.sh
+```
+
+Kalau tidak ada curl, pakai wget:
+
+```bash
+wget https://raw.githubusercontent.com/agenticspring/bnt-seine-runner/main/run-seine.sh -O run-seine.sh
+```
+
+Cara ini tetap butuh VPS bisa membuka `raw.githubusercontent.com`,
+tapi tidak memakai protokol git — jadi kalau yang diblokir hanya
+`git clone`, cara ini biasanya tetap lolos.
+
+### Opsi B — kalau github diblokir total dari VPS
+
+1. Di HP/laptop, buka
+   https://github.com/agenticspring/bnt-seine-runner/blob/main/run-seine.sh
+   lalu simpan file `run-seine.sh` (tombol Raw / download).
+2. Upload ke VPS pakai scp:
+
+```bash
+scp run-seine.sh root@IP-VPS:/root/
+```
+
+atau lewat SFTP / file manager panel VPS.
+3. Lanjut ke langkah menjalankan di bawah.
+
+Kalau tidak bisa transfer file sama sekali: copy seluruh isi script
+dari halaman Raw, lalu di VPS jalankan `cat > run-seine.sh`, paste
+isinya, tekan `Ctrl+D`. Pastikan tidak ada baris yang terpotong, lalu
+lanjut.
+
+### Menjalankan
 
 ```bash
 chmod +x run-seine.sh
@@ -56,6 +88,15 @@ nohup sudo ./run-seine.sh > seine.log 2>&1 &
 atau pakai `screen`/`tmux`, atau daftarkan sendiri sebagai service
 systemd kalau mau jalan permanen + auto-restart.
 
+### Alternatif: pakai git clone (kalau tidak diblokir)
+
+```bash
+git clone https://github.com/agenticspring/bnt-seine-runner.git
+cd bnt-seine-runner
+chmod +x run-seine.sh
+sudo ./run-seine.sh
+```
+
 ## Cek hasil
 
 - Log skrip menampilkan pool, alamat wallet, dan status HugePages.
@@ -64,6 +105,8 @@ systemd kalau mau jalan permanen + auto-restart.
 
 ## Kalau gagal
 
+- `curl` gagal / github tidak bisa dibuka dari VPS — pakai Opsi B di
+  atas (download di HP/laptop, upload via scp/SFTP).
 - `Archive download failed` — VPS tidak bisa mencapai github.com,
   cek koneksi/egress VPS.
 - `SHA-256 mismatch` — arsip tidak diekstrak; ulangi (download corrupt
