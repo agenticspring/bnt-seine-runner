@@ -4,7 +4,12 @@ set -Eeuo pipefail
 # Download, verify, extract, configure HugePages, and run Seine.
 # Requires Linux x86_64 and root privileges.
 
-BASE_URL="https://github.com/zpalmtree/seine/releases/latest/download"
+# Binary + checksum di-vendor di repo ini (folder seine/) dan disajikan
+# lewat raw.githubusercontent.com — karena github.com diblokir dari
+# sebagian VPS, sementara raw.githubusercontent.com bisa diakses.
+# File-file ini adalah rilis resmi upstream, hash-nya diverifikasi
+# terhadap SHA256SUMS.txt resmi sebelum di-commit.
+BASE_URL="https://raw.githubusercontent.com/agenticspring/bnt-seine-runner/main/seine"
 ASSET="seine-linux-x86_64.tar.gz"
 POOL_URL="stratum+tcp://bntpool.com:3333"
 ADDRESS="PLMGsifmTC9Zn5pHqcMkbayvzSG3SBX6vAwJts3KQCwfGRsznpv2qdyCFyRpnh46TwcQu8mLEu1CVdHdQzsx7Ty637GQc"
@@ -60,7 +65,7 @@ download() {
 
 # Download archive and official checksum manifest.
 download "$BASE_URL/$ASSET" "$WORK/$ASSET" ||
-    die "Archive download failed. Check VPS access to github.com."
+    die "Archive download failed. Check VPS access to raw.githubusercontent.com."
 
 download "$BASE_URL/SHA256SUMS.txt" "$WORK/SHA256SUMS.txt" ||
     die "Checksum manifest download failed."

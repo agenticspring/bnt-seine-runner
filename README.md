@@ -6,8 +6,15 @@ satu CPU worker, mode HugePages strict.
 
 ## Yang dilakukan skrip (`run-seine.sh`)
 
-- Download `seine-linux-x86_64.tar.gz` + `SHA256SUMS.txt` dari rilis
-  terbaru zpalmtree/seine, lalu verifikasi SHA-256 **sebelum** ekstrak.
+- Download `seine-linux-x86_64.tar.gz` + `SHA256SUMS.txt` dari folder
+  `seine/` di repo ini (disajikan lewat `raw.githubusercontent.com`),
+  lalu verifikasi SHA-256 **sebelum** ekstrak. File binary ini adalah
+  rilis resmi [zpalmtree/seine](https://github.com/zpalmtree/seine) yang
+  di-vendor ke repo — alasannya: `github.com` diblokir dari sebagian
+  VPS (koneksi ke `github.com:443` timeout), sementara
+  `raw.githubusercontent.com` bisa diakses. Versi yang di-vendor adalah
+  rilis terbaru per 24 Okt 2026; hash-nya diverifikasi terhadap
+  manifest resmi upstream sebelum di-commit.
 - Install `./seine` di folder yang sama dengan skrip (binary lama
   dibackup otomatis jadi `./seine.backup.<tanggal-jam>`).
 - Set `vm.nr_hugepages = 1024` (2 GB) secara persisten lewat
