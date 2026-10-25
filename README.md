@@ -18,17 +18,6 @@ https://kc.txedu.social/#/
 - Status pool saat terakhir dicek (25 Okt 2026): online, node synced,
   50 miner online, pangsa sekitar 57% network.
 
-**Pool lama (cadangan): bntpool.com**
-`stratum+tcp://bntpool.com:3333`, fee pool 2,5%, PPLNS 6 jam, minimum
-payout 0,1 BNT. Pool ini masih hidup, tapi ada catatan penting: dari
-sebagian jalur ArkClaw, koneksi stratum langsung ke bntpool.com
-**ditutup ~0,22 detik setelah connect** (bare RST/EOF, tanpa pesan
-error, bahkan untuk koneksi idle tanpa data) sehingga miner tidak
-pernah login. Kalau itu terjadi, solusinya bukan ganti alamat atau
-worker — solusinya pindah pool (kc di atas) atau pakai relay (lihat
-bagian Relay di bawah). Jangan buang waktu mengulang install kalau
-gejalanya persis itu.
-
 ## Isi repo
 
 - `run-seine.sh` — download + verifikasi SHA-256 + install + jalan.
@@ -206,8 +195,7 @@ Yang harus terlihat, urut:
 2. Log HugePages: `HugePages_Total=1024`, dan `HugePages_Free`
    mendekati 0 setelah miner jalan (artinya 1024 pages dipakai miner,
    bukan gagal).
-3. Log koneksi (ini yang tidak pernah terjadi di jalur bntpool yang
-   bermasalah): `connected`, lalu `login accepted (protocol v2)`,
+3. Log koneksi yang harus muncul: `connected`, lalu `login accepted (protocol v2)`,
    lalu `new job` dengan difficulty awal (di pool kc: 600).
 4. Share pertama `accepted` dalam puluhan detik pertama, lalu
    `VARDIFF` menyesuaikan difficulty (misalnya 600 → 900).
@@ -270,7 +258,7 @@ sudo ./run-seine.sh
 ## Memindahkan miner yang sudah jalan ke pool baru
 
 Miner yang sedang jalan tidak ikut berubah saat repo di-update.
-Untuk memindahkannya (misalnya dari bntpool/relay ke kc, atau
+Untuk memindahkannya (misalnya dari relay ke kc, atau
 sebaliknya):
 
 ```bash
@@ -325,10 +313,9 @@ Yang terbukti bekerja, urut dari yang paling ringan:
    **Jangan pernah tekan Factory Reset** — itu menghapus semua
    file, beda jauh dengan Restart.
 
-### Pool offline / connection reset berulang (khusus bntpool)
+### Pool offline / connection reset berulang
 
-Gejala: `pool offline at stratum+tcp://bntpool.com:3333
-(Connection reset by peer)` berulang tiap ~2 detik, STATS terus
+Gejala: `pool offline` berulang tiap ~2 detik, STATS terus
 `hashes=0, rate=0.000, accepted=0`, dan tidak pernah ada baris
 `login accepted`.
 
@@ -337,12 +324,12 @@ Diagnosis yang sudah terbukti (25 Okt 2026, Claw ArkClaw
 ~0,22 detik kemudian — bahkan koneksi idle tanpa data pun ditutup.
 `mining.authorize` tidak pernah terkirim, jadi penyebabnya bukan
 wallet, bukan worker, bukan versi Seine. Ini masalah jalur egress
-ke bntpool, bukan masalah install.
+ke pool tersebut, bukan masalah install.
 
-Solusinya: pindah ke pool kc di atas (direct), atau pakai relay
-(lihat di bawah). Mengulang install, ganti worker, atau ganti
-bntpool.com dengan IP-nya langsung (`69.164.251.242:3333`) sudah
-dicoba dan **tidak mengubah apa-apa** — polanya identik.
+Solusinya: pindah pool atau pakai relay (lihat di bawah).
+Mengulang install, ganti worker, atau ganti hostname pool dengan
+IP-nya langsung sudah dicoba dan **tidak mengubah apa-apa** —
+polanya identik.
 
 ### Probe generik ditolak pool kc — bukan berarti pool tidak cocok
 
@@ -363,7 +350,7 @@ ke pool. Relay dipakai dalam dua kasus yang sudah terbukti:
 
 - Mesin yang egress-nya hanya membuka port 80/443 (contoh: VPS
   UpCloud) — direct ke port 3333 tidak bisa sama sekali.
-- Jalur ArkClaw ke bntpool yang kena RST 0,22 detik — lewat relay
+- Jalur yang kena RST 0,22 detik ke pool lamanya — lewat relay
   port 443, Seine mendapat `login accepted` dan share accepted
   normal (terverifikasi: ~1,79 H/s, 0 stale).
 
@@ -406,11 +393,7 @@ jalan di suatu mesin, tidak perlu relay di mesin itu.
 
 ## Riwayat perubahan pool
 
-- Sampai 24 Okt 2026: pool utama `bntpool.com:3333`.
-- 25 Okt 2026: direct ke bntpool dari jalur ArkClaw terbukti kena
-  RST 0,22 detik; relay DO terbukti jalan sebagai jalan keluar.
 - 25 Okt 2026: pool kc.txedu.social
   (`stratum+tcp://103.54.127.250:3333`) terbukti jalan direct dari
-  Claw yang sama — `login accepted` protocol v2, share accepted,
+  Claw ArkClaw — `login accepted` protocol v2, share accepted,
   ~1,82 H/s, 0 stale — dan dijadikan pool utama di kedua skrip.
-  bntpool tetap didokumentasikan sebagai cadangan.
