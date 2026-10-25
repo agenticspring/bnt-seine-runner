@@ -123,3 +123,88 @@ sudo ./run-seine.sh
 - `Expected 2 MiB huge pages` — kernel VPS tidak mendukung HugePages
   2 MB (mis. container tanpa akses host); skrip ini butuh VM beneran,
   bukan container terbatas.
+
+## Cara kedua: `bakekok.sh` (miner sudah ada, tanpa download)
+
+Skrip ini untuk kondisi binary `./seine` **sudah ada** di mesin dan
+tidak perlu di-download lagi. Skrip ini sendiri tidak men-download
+atau mengekstrak apa pun — ia hanya menyiapkan HugePages lalu
+menjalankan binary yang sudah ada.
+
+**ADDRESS sudah diisi** dengan alamat wallet BNT produksi yang sama
+(`PLMGsifmTC9Zn5pHqcMkbayvzSG3SBX6vAwJts3KQCwfGRsznpv2qdyCFyRpnh46TwcQu8mLEu1CVdHdQzsx7Ty637GQc`).
+Kalau dipakai orang lain, ganti dulu `ADDRESS` di `bakekok.sh` dengan
+alamat walletnya sendiri.
+
+### 1. Siapkan binary Seine v0.2.21
+
+Di mesin (sebagai root), download dan ekstrak rilis resmi:
+
+```bash
+curl -L https://github.com/zpalmtree/seine/releases/download/v0.2.21/seine-linux-x86_64.tar.gz -o seine.tar.gz
+tar -xzf seine.tar.gz
+chmod +x ./seine
+./seine --version
+```
+
+Harus muncul `seine v0.2.21`. Kalau `github.com` diblokir dari mesin
+tersebut, download `seine.tar.gz` di HP/laptop lalu upload via
+scp/SFTP seperti Opsi B di atas.
+
+### 2. Download `bakekok.sh` ke folder yang sama dengan `./seine`
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/agenticspring/bnt-seine-runner/main/bakekok.sh -o bakekok.sh
+chmod +x bakekok.sh
+bash -n bakekok.sh
+```
+
+`bash -n` harus lolos tanpa error. Kalau file hasil download punya
+akhir baris Windows (CRLF), bersihkan dulu sebelum dijalankan.
+
+### 3. Jalankan miner di background
+
+Dari folder yang berisi `bakekok.sh` dan `./seine`, sebagai root:
+
+```bash
+nohup ./bakekok.sh > bakekok.log 2>&1 &
+disown
+```
+
+Skrip akan: menulis setting persisten
+`/etc/sysctl.d/99-seine-hugepages.conf`, melakukan memory compaction
++ 3x percobaan alokasi, lalu `exec ./seine` ke pool
+`stratum+tcp://bntpool.com:3333` (1 thread).
+
+### 4. Verifikasi miner jalan
+
+```bash
+ps aux | grep -E '[s]eine'
+tail -n 50 bakekok.log
+grep HugePages /proc/meminfo
+```
+
+Yang harus terlihat:
+
+- Proses `./seine` aktif (bukan hanya skripnya).
+- Log: `HugePages_Total=1024`, `HugePages_Free` kecil/mendekati 0
+  setelah miner jalan, `login accepted`, lalu share `accepted`
+  bertambah dan `stale` mendekati 0.
+- Tutup lalu buka lagi terminal: proses `./seine` harus masih ada
+  (tanda `nohup` + `disown` bekerja).
+- Cek juga di https://bntpool.com (My Stats, tempel alamat wallet):
+  worker muncul dan share accepted bertambah.
+
+### Kalau gagal di langkah HugePages
+
+- `Only N HugeTLB pages are free; Seine needs at least 1024` —
+  artinya RAM belum cukup longgar. Yang terbukti bekerja: tutup
+  aplikasi berat lain, ulangi beberapa kali (alokasi sebelumnya
+  bertahan sehingga angka free cenderung naik tiap percobaan),
+  atau reboot mesin lalu jalankan lagi secepatnya setelah boot.
+- Di BohrClaw/ArkClaw: tombol Restart di dashboard hanya me-restart
+  aplikasi Claw, **bukan** OS-nya — jangan tekan Factory Reset,
+  karena itu menghapus semua file.
+- Peringatan `pool telemetry ... rate limited` di log boleh
+  diabaikan: itu batas API telemetri pool, mining tetap jalan
+  selama `login accepted` dan share accepted bertambah.
