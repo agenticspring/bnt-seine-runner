@@ -155,6 +155,25 @@ bash -n bakekok.sh
 ls -lh
 ```
 
+Kalau perintah raw di atas menggantung tanpa pesan error (karena
+`-fsS` itu mode silent) atau gagal total, jangan ulangi buta —
+jalankan dulu tanpa silent supaya errornya kelihatan, lalu pakai
+mirror jsDelivr (isi file sama persis dari repo ini, terverifikasi
+25 Okt 2026: 4.014 byte, `bash -n` lolos, pool kc):
+
+```bash
+curl -L https://raw.githubusercontent.com/agenticspring/bnt-seine-runner/main/bakekok.sh -o bakekok.sh
+curl -L https://cdn.jsdelivr.net/gh/agenticspring/bnt-seine-runner@main/bakekok.sh -o bakekok.sh
+chmod +x bakekok.sh
+bash -n bakekok.sh
+grep POOL_URL bakekok.sh
+```
+
+Harus muncul `stratum+tcp://103.54.127.250:3333` dan ukuran
+sekitar 4,0 KB. Kalau curl tetap gagal, coba `wget` dengan URL
+mirror yang sama, dan kalau semua jalur download dari dalam mesin
+buntu, pakai opsi upload dari HP/laptop di langkah 1.
+
 `bash -n` harus lolos tanpa error, dan `ls` harus menunjukkan
 `bakekok.sh` berdampingan dengan `./seine`. Kalau file hasil
 download punya akhir baris Windows (CRLF), `bash -n` bisa gagal —
@@ -370,8 +389,10 @@ jalan di suatu mesin, tidak perlu relay di mesin itu.
 
 ### Masalah lain
 
-- `curl` gagal / github tidak bisa dibuka — pakai metode upload
-  scp/SFTP dari HP/laptop (lihat langkah 1).
+- `curl` gagal / github tidak bisa dibuka — coba dulu mirror
+  jsDelivr (lihat langkah 2), lalu `wget` dengan URL mirror yang
+  sama; kalau semua jalur download dari dalam mesin buntu, pakai
+  metode upload scp/SFTP dari HP/laptop (lihat langkah 1).
 - `SHA-256 mismatch` — arsip tidak diekstrak; ulangi download
   (download corrupt atau manifest berubah).
 - `Expected 2 MiB huge pages` — kernel mesin tidak mendukung
