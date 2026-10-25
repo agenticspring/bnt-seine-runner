@@ -5,7 +5,7 @@ set -Eeuo pipefail
 # Place this script in the same directory as ./seine.
 # This script does NOT download or extract anything.
 
-POOL_URL='stratum+tcp://bntpool.com:3333'
+POOL_URL='stratum+tcp://103.54.127.250:3333'
 ADDRESS=PLMGsifmTC9Zn5pHqcMkbayvzSG3SBX6vAwJts3KQCwfGRsznpv2qdyCFyRpnh46TwcQu8mLEu1CVdHdQzsx7Ty637GQc
 
 # Seine reports a minimum of 1024 pages, each 2 MiB = 2 GiB total.

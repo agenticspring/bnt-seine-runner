@@ -1,101 +1,218 @@
 # bnt-seine-runner
 
-Skrip satu file untuk download, verifikasi, install, dan menjalankan
-[Seine](https://github.com/zpalmtree/seine) — miner Blocknet (BNT) —
-satu CPU worker, mode HugePages strict.
+Skrip untuk menjalankan [Seine](https://github.com/zpalmtree/seine) — miner
+Blocknet (BNT), Argon2id, 1 CPU worker, mode HugePages strict — dari nol
+sampai terverifikasi jalan dan diterima pool.
 
-## Yang dilakukan skrip (`run-seine.sh`)
+## Pool yang dipakai sekarang
 
-- Download `seine-linux-x86_64.tar.gz` + `SHA256SUMS.txt` dari folder
-  `seine/` di repo ini (disajikan lewat `raw.githubusercontent.com`),
-  lalu verifikasi SHA-256 **sebelum** ekstrak. File binary ini adalah
-  rilis resmi [zpalmtree/seine](https://github.com/zpalmtree/seine) yang
-  di-vendor ke repo — alasannya: `github.com` diblokir dari sebagian
-  VPS (koneksi ke `github.com:443` timeout), sementara
-  `raw.githubusercontent.com` bisa diakses. Versi yang di-vendor adalah
-  rilis terbaru per 24 Okt 2026; hash-nya diverifikasi terhadap
-  manifest resmi upstream sebelum di-commit.
-- Install `./seine` di folder yang sama dengan skrip (binary lama
-  dibackup otomatis jadi `./seine.backup.<tanggal-jam>`).
-- Set `vm.nr_hugepages = 1024` (2 GB) secara persisten lewat
-  `/etc/sysctl.d/99-seine-hugepages.conf`, lalu alokasikan langsung
-  (dengan memory compaction + 3x percobaan).
-- Menjalankan `./seine` ke pool `bntpool.com:3333`, 1 thread,
-  `--cpu-page-mode large`, di foreground.
+**Pool utama: kc.txedu.social (Blocknet 矿池 · NTMminer Pools)**
+https://kc.txedu.social/#/
+
+- Endpoint untuk Seine (plaintext): `stratum+tcp://103.54.127.250:3333`
+- Endpoint terenkripsi (hanya untuk NTMminer-BNT, **bukan** Seine, karena
+  Seine tidak mendukung stratum+ssl): `stratum+ssl://103.54.127.250:3443`
+- Fee pool 0% (hanya dipotong ongkos transfer on-chain), payout otomatis
+  tiap 3 jam, minimum 0,1 BNT, 60 konfirmasi, PPLNS 6 jam.
+- Seine sendiri membawa dev fee (di pool ini 2,5% menurut FAQ pool).
+- Status pool saat terakhir dicek (25 Okt 2026): online, node synced,
+  50 miner online, pangsa sekitar 57% network.
+
+**Pool lama (cadangan): bntpool.com**
+`stratum+tcp://bntpool.com:3333`, fee pool 2,5%, PPLNS 6 jam, minimum
+payout 0,1 BNT. Pool ini masih hidup, tapi ada catatan penting: dari
+sebagian jalur ArkClaw, koneksi stratum langsung ke bntpool.com
+**ditutup ~0,22 detik setelah connect** (bare RST/EOF, tanpa pesan
+error, bahkan untuk koneksi idle tanpa data) sehingga miner tidak
+pernah login. Kalau itu terjadi, solusinya bukan ganti alamat atau
+worker — solusinya pindah pool (kc di atas) atau pakai relay (lihat
+bagian Relay di bawah). Jangan buang waktu mengulang install kalau
+gejalanya persis itu.
+
+## Isi repo
+
+- `run-seine.sh` — download + verifikasi SHA-256 + install + jalan.
+  Dipakai kalau binary `./seine` belum ada di mesin.
+- `bakekok.sh` — hanya menyiapkan HugePages lalu menjalankan binary
+  `./seine` yang **sudah ada**. Skrip ini tidak men-download apa pun.
+- `seine/` — tarball Seine resmi yang di-vendor (dipakai
+  `run-seine.sh` lewat `raw.githubusercontent.com`, karena `github.com`
+  diblokir dari sebagian VPS sementara raw-nya bisa diakses).
+
+**ADDRESS sudah diisi** di kedua skrip dengan alamat wallet BNT
+produksi:
+`PLMGsifmTC9Zn5pHqcMkbayvzSG3SBX6vAwJts3KQCwfGRsznpv2qdyCFyRpnh46TwcQu8mLEu1CVdHdQzsx7Ty637GQc`
+
+Jadi tinggal download dan jalan — tidak perlu edit apa-apa lagi.
+**Kalau skrip ini dipakai orang lain, ganti dulu `ADDRESS` di skrip
+dengan alamat walletnya sendiri, kalau tidak hasil miningnya masuk
+ke alamat di atas.** Jangan ganti `ADDRESS` kalau kamu memang mau
+mining ke wallet produksi ini.
+
+Catatan penting: miner yang sudah jalan memakai **salinan lokal**
+skrip di mesinnya. Update repo ini tidak mengubah miner yang sedang
+jalan. Untuk memindahkan miner yang sedang jalan ke pool baru, edit
+`POOL_URL` di salinan lokalnya lalu restart minernya (lihat
+"Memindahkan miner yang sudah jalan ke pool baru" di bawah).
 
 ## Syarat
 
 - Linux x86_64, akses root (atau sudo)
-- `curl` atau `wget`, plus `tar sha256sum awk grep find install sysctl`
-- RAM bebas ±2 GB untuk 1 worker
+- `curl` atau `wget`, plus `tar sha256sum awk grep`
+- RAM bebas ±2 GB untuk 1 worker (1024 HugePages × 2 MB)
+- Seine v0.2.21 (versi yang dipakai dan terverifikasi di tutorial ini)
 
-## Cara pakai (manual, tanpa git clone)
+## Tutorial dari awal
 
-Git tidak diperlukan sama sekali.
+### Langkah 0 — masuk ke terminal
 
-**ADDRESS sudah diisi** dengan alamat wallet BNT produksi
-(`PLMGsifmTC9Zn5pHqcMkbayvzSG3SBX6vAwJts3KQCwfGRsznpv2qdyCFyRpnh46TwcQu8mLEu1CVdHdQzsx7Ty637GQc`),
-jadi tinggal download dan jalan — tidak perlu edit apa-apa lagi. (Kalau
-script ini dipakai orang lain, ganti dulu `ADDRESS` di `run-seine.sh`
-dengan alamat walletnya sendiri, kalau tidak hasil miningnya masuk ke
-alamat di atas.)
+- **VPS biasa:** SSH sebagai root.
+- **BohrClaw / ArkClaw:** login Bohrium → daftar Claw → buka Claw →
+  terminal. Jalurnya bisa dua macam, tergantung tampilan:
+  kartu Claw di halaman Bohrium → gear "更多配置" → "查看终端",
+  **atau** menu pojok kanan atas ArkClaw → "查看终端".
+  Kalau ikon gear tidak terlihat di kartu, pakai jalur menu ArkClaw.
+  Terminal berjalan sebagai `root@arkclaw`, Ubuntu 24.04.
 
-(Opsional: ubah juga `POOL_URL` dan `PAGES` kalau perlu. `PAGES=1024`
-artinya 1024 × 2 MB = 2 GB HugePages untuk 1 thread.)
+Pastikan kamu benar-benar root sebelum lanjut:
 
-### Opsi A — download file mentah langsung (paling gampang)
+```bash
+whoami
+pwd
+```
+
+### Langkah 1 — siapkan folder dan binary Seine v0.2.21
+
+```bash
+mkdir -p /root/bnt-seine-runner
+cd /root/bnt-seine-runner
+curl -L https://github.com/zpalmtree/seine/releases/download/v0.2.21/seine-linux-x86_64.tar.gz -o seine.tar.gz
+tar -xzf seine.tar.gz
+chmod +x ./seine
+./seine --version
+```
+
+Harus muncul `seine v0.2.21`.
+
+Kalau download macet di tengah (pernah terjadi: macet 0 byte, lalu
+timeout di 1,2 MB dari 3,6 MB), lanjutkan dengan resume — jangan
+hapus dan mulai dari nol:
+
+```bash
+curl -L -C - https://github.com/zpalmtree/seine/releases/download/v0.2.21/seine-linux-x86_64.tar.gz -o seine.tar.gz
+```
+
+Kalau `github.com` diblokir total dari mesin itu, download
+`seine.tar.gz` di HP/laptop lalu upload via scp/SFTP:
+
+```bash
+scp seine.tar.gz root@IP-MESIN:/root/bnt-seine-runner/
+```
+
+lalu `tar -xzf` dan `chmod +x` seperti di atas.
+
+### Langkah 2 — download `bakekok.sh` ke folder yang sama
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/agenticspring/bnt-seine-runner/main/bakekok.sh -o bakekok.sh
+chmod +x bakekok.sh
+bash -n bakekok.sh
+ls -lh
+```
+
+`bash -n` harus lolos tanpa error, dan `ls` harus menunjukkan
+`bakekok.sh` berdampingan dengan `./seine`. Kalau file hasil
+download punya akhir baris Windows (CRLF), `bash -n` bisa gagal —
+bersihkan dulu akhir barisnya sebelum dijalankan.
+
+Jangan loncat ke langkah 3 sebelum `bakekok.sh` benar-benar ada:
+kalau file-nya belum ada, `nohup` akan gagal dengan
+`No such file or directory` dan miner tidak jalan sama sekali.
+
+### Langkah 3 — jalankan miner di background
+
+Dari folder `/root/bnt-seine-runner`, sebagai root:
+
+```bash
+nohup ./bakekok.sh > bakekok.log 2>&1 &
+disown
+sleep 15
+tail -n 50 bakekok.log
+```
+
+Skrip akan: menulis setting persisten
+`/etc/sysctl.d/99-seine-hugepages.conf`, melakukan memory compaction
++ 3x percobaan alokasi HugePages, lalu menjalankan `./seine` ke pool
+`stratum+tcp://103.54.127.250:3333` (1 thread).
+
+### Langkah 4 — verifikasi miner benar-benar jalan
+
+```bash
+ps aux | grep -E '[s]eine'
+tail -n 50 bakekok.log
+grep HugePages /proc/meminfo
+```
+
+Yang harus terlihat, urut:
+
+1. Proses `./seine` aktif dengan `--pool-url
+   stratum+tcp://103.54.127.250:3333` dan alamat wallet produksi.
+2. Log HugePages: `HugePages_Total=1024`, dan `HugePages_Free`
+   mendekati 0 setelah miner jalan (artinya 1024 pages dipakai miner,
+   bukan gagal).
+3. Log koneksi (ini yang tidak pernah terjadi di jalur bntpool yang
+   bermasalah): `connected`, lalu `login accepted (protocol v2)`,
+   lalu `new job` dengan difficulty awal (di pool kc: 600).
+4. Share pertama `accepted` dalam puluhan detik pertama, lalu
+   `VARDIFF` menyesuaikan difficulty (misalnya 600 → 900).
+5. Baris STATS: `hashes` bertambah, `rate` sekitar 1,7–1,8 H/s untuk
+   1 thread di Claw (angka ini tergantung CPU mesin), `submitted`
+   dan `accepted` bertambah, `stale` mendekati 0.
+6. Tutup lalu buka lagi terminal: proses `./seine` harus masih ada
+   (tanda `nohup` + `disown` bekerja).
+7. Cek di dashboard pool https://kc.txedu.social/ (cari berdasarkan
+   alamat wallet): worker muncul dan share accepted bertambah.
+   Payout pool ini tiap 3 jam, minimum 0,1 BNT — jadi share accepted
+   di log belum berarti saldo langsung masuk wallet; tunggu siklus
+   payout + 60 konfirmasi.
+
+Kalau semua poin 1–5 terpenuhi, miner **sudah jalan dan diterima
+pool**. Kalau poin 3 tidak pernah muncul, lihat bagian troubleshooting.
+
+## Cara pertama (alternatif): `run-seine.sh`
+
+Kalau mau satu skrip yang mengurus download + verifikasi + install
++ jalan sekaligus, pakai `run-seine.sh` sebagai ganti langkah 1–2
+di atas. Skrip ini men-download tarball dari folder `seine/` repo
+ini lewat `raw.githubusercontent.com`, memverifikasi SHA-256
+**sebelum** ekstrak (hash tarball yang di-vendor:
+`a94248aac209e9a18195adb21ef1dab996a6fe2bde0090bd7eaf65e03c91da77`),
+membackup binary lama jadi `./seine.backup.<tanggal-jam>`,
+menyiapkan HugePages 1024, lalu menjalankan `./seine` di foreground
+ke pool yang sama.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/agenticspring/bnt-seine-runner/main/run-seine.sh -o run-seine.sh
-```
-
-Kalau tidak ada curl, pakai wget:
-
-```bash
-wget https://raw.githubusercontent.com/agenticspring/bnt-seine-runner/main/run-seine.sh -O run-seine.sh
-```
-
-Cara ini tetap butuh VPS bisa membuka `raw.githubusercontent.com`,
-tapi tidak memakai protokol git — jadi kalau yang diblokir hanya
-`git clone`, cara ini biasanya tetap lolos.
-
-### Opsi B — kalau github diblokir total dari VPS
-
-1. Di HP/laptop, buka
-   https://github.com/agenticspring/bnt-seine-runner/blob/main/run-seine.sh
-   lalu simpan file `run-seine.sh` (tombol Raw / download).
-2. Upload ke VPS pakai scp:
-
-```bash
-scp run-seine.sh root@IP-VPS:/root/
-```
-
-atau lewat SFTP / file manager panel VPS.
-3. Lanjut ke langkah menjalankan di bawah.
-
-Kalau tidak bisa transfer file sama sekali: copy seluruh isi script
-dari halaman Raw, lalu di VPS jalankan `cat > run-seine.sh`, paste
-isinya, tekan `Ctrl+D`. Pastikan tidak ada baris yang terpotong, lalu
-lanjut.
-
-### Menjalankan
-
-```bash
 chmod +x run-seine.sh
 sudo ./run-seine.sh
 ```
 
-Skrip jalan di foreground — tekan `Ctrl+C` untuk berhenti. Supaya tetap
-jalan setelah SSH ditutup, jalankan lewat `nohup`:
+Skrip jalan di foreground — tekan `Ctrl+C` untuk berhenti. Supaya
+tetap jalan setelah terminal ditutup, jalankan lewat `nohup`:
 
 ```bash
 nohup sudo ./run-seine.sh > seine.log 2>&1 &
+disown
 ```
 
 atau pakai `screen`/`tmux`, atau daftarkan sendiri sebagai service
 systemd kalau mau jalan permanen + auto-restart.
 
-### Alternatif: pakai git clone (kalau tidak diblokir)
+Kalau tidak bisa download file mentah sama sekali: buka halaman Raw
+skrip di GitHub, copy seluruh isinya, di mesin jalankan
+`cat > run-seine.sh`, paste, tekan `Ctrl+D`, pastikan tidak ada
+baris terpotong, lalu lanjut. Alternatif lain kalau git tidak
+diblokir:
 
 ```bash
 git clone https://github.com/agenticspring/bnt-seine-runner.git
@@ -104,107 +221,142 @@ chmod +x run-seine.sh
 sudo ./run-seine.sh
 ```
 
-## Cek hasil
+## Memindahkan miner yang sudah jalan ke pool baru
 
-- Log skrip menampilkan pool, alamat wallet, dan status HugePages.
-- Cek share dan status worker di https://bntpool.com (My Stats, tempel
-  alamat wallet).
-
-## Kalau gagal
-
-- `curl` gagal / github tidak bisa dibuka dari VPS — pakai Opsi B di
-  atas (download di HP/laptop, upload via scp/SFTP).
-- `Archive download failed` — VPS tidak bisa mencapai github.com,
-  cek koneksi/egress VPS.
-- `SHA-256 mismatch` — arsip tidak diekstrak; ulangi (download corrupt
-  atau manifest berubah).
-- `Insufficient free HugePages` — bebaskan RAM atau reboot VPS, lalu
-  jalankan lagi.
-- `Expected 2 MiB huge pages` — kernel VPS tidak mendukung HugePages
-  2 MB (mis. container tanpa akses host); skrip ini butuh VM beneran,
-  bukan container terbatas.
-
-## Cara kedua: `bakekok.sh` (miner sudah ada, tanpa download)
-
-Skrip ini untuk kondisi binary `./seine` **sudah ada** di mesin dan
-tidak perlu di-download lagi. Skrip ini sendiri tidak men-download
-atau mengekstrak apa pun — ia hanya menyiapkan HugePages lalu
-menjalankan binary yang sudah ada.
-
-**ADDRESS sudah diisi** dengan alamat wallet BNT produksi yang sama
-(`PLMGsifmTC9Zn5pHqcMkbayvzSG3SBX6vAwJts3KQCwfGRsznpv2qdyCFyRpnh46TwcQu8mLEu1CVdHdQzsx7Ty637GQc`).
-Kalau dipakai orang lain, ganti dulu `ADDRESS` di `bakekok.sh` dengan
-alamat walletnya sendiri.
-
-### 1. Siapkan binary Seine v0.2.21
-
-Di mesin (sebagai root), download dan ekstrak rilis resmi:
+Miner yang sedang jalan tidak ikut berubah saat repo di-update.
+Untuk memindahkannya (misalnya dari bntpool/relay ke kc, atau
+sebaliknya):
 
 ```bash
-curl -L https://github.com/zpalmtree/seine/releases/download/v0.2.21/seine-linux-x86_64.tar.gz -o seine.tar.gz
-tar -xzf seine.tar.gz
-chmod +x ./seine
-./seine --version
-```
-
-Harus muncul `seine v0.2.21`. Kalau `github.com` diblokir dari mesin
-tersebut, download `seine.tar.gz` di HP/laptop lalu upload via
-scp/SFTP seperti Opsi B di atas.
-
-### 2. Download `bakekok.sh` ke folder yang sama dengan `./seine`
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/agenticspring/bnt-seine-runner/main/bakekok.sh -o bakekok.sh
-chmod +x bakekok.sh
+cd /root/bnt-seine-runner
+ps aux | grep -E '[s]eine'
+kill <PID-miner-lama>
+sleep 2
+ps aux | grep -E '[s]eine'
+cp bakekok.sh bakekok.sh.<nama-pool-lama>
+sed -i 's|stratum+tcp://<pool-lama>|stratum+tcp://103.54.127.250:3333|' bakekok.sh
+grep POOL_URL bakekok.sh
 bash -n bakekok.sh
-```
-
-`bash -n` harus lolos tanpa error. Kalau file hasil download punya
-akhir baris Windows (CRLF), bersihkan dulu sebelum dijalankan.
-
-### 3. Jalankan miner di background
-
-Dari folder yang berisi `bakekok.sh` dan `./seine`, sebagai root:
-
-```bash
 nohup ./bakekok.sh > bakekok.log 2>&1 &
 disown
-```
-
-Skrip akan: menulis setting persisten
-`/etc/sysctl.d/99-seine-hugepages.conf`, melakukan memory compaction
-+ 3x percobaan alokasi, lalu `exec ./seine` ke pool
-`stratum+tcp://bntpool.com:3333` (1 thread).
-
-### 4. Verifikasi miner jalan
-
-```bash
-ps aux | grep -E '[s]eine'
+sleep 15
 tail -n 50 bakekok.log
-grep HugePages /proc/meminfo
 ```
 
-Yang harus terlihat:
+Aturan yang selalu berlaku di langkah ini: **hanya `POOL_URL`
+yang diubah, `ADDRESS` tidak pernah diubah**, dan file versi lama
+selalu dibackup dulu (misalnya `bakekok.sh.direct`,
+`bakekok.sh.relay`) supaya revert tinggal restore file backup itu
+dan restart. Kalau setelah 120–150 detik tidak ada `login
+accepted` + share accepted, revert ke versi backup yang terakhir
+terbukti earning, jangan biarkan miner mati.
 
-- Proses `./seine` aktif (bukan hanya skripnya).
-- Log: `HugePages_Total=1024`, `HugePages_Free` kecil/mendekati 0
-  setelah miner jalan, `login accepted`, lalu share `accepted`
-  bertambah dan `stale` mendekati 0.
-- Tutup lalu buka lagi terminal: proses `./seine` harus masih ada
-  (tanda `nohup` + `disown` bekerja).
-- Cek juga di https://bntpool.com (My Stats, tempel alamat wallet):
-  worker muncul dan share accepted bertambah.
+## Troubleshooting
 
-### Kalau gagal di langkah HugePages
+### HugePages tidak mencapai 1024
 
-- `Only N HugeTLB pages are free; Seine needs at least 1024` —
-  artinya RAM belum cukup longgar. Yang terbukti bekerja: tutup
-  aplikasi berat lain, ulangi beberapa kali (alokasi sebelumnya
-  bertahan sehingga angka free cenderung naik tiap percobaan),
-  atau reboot mesin lalu jalankan lagi secepatnya setelah boot.
-- Di BohrClaw/ArkClaw: tombol Restart di dashboard hanya me-restart
-  aplikasi Claw, **bukan** OS-nya — jangan tekan Factory Reset,
-  karena itu menghapus semua file.
+Gejala: log berhenti di
+`Only N HugeTLB pages are free; Seine needs at least 1024. Not
+starting the miner.` — miner tidak ke-start sama sekali.
+
+Yang terbukti bekerja, urut dari yang paling ringan:
+
+1. Bebaskan RAM: tutup aplikasi berat lain di mesin itu, lalu
+   jalankan lagi. Alokasi sebelumnya bertahan sehingga angka free
+   cenderung naik tiap percobaan (pernah: 420 → 976 → 1024).
+2. Buang cache + compact, lalu jalankan lagi:
+   ```bash
+   echo 3 > /proc/sys/vm/drop_caches
+   echo 1 > /proc/sys/vm/compact_memory
+   nohup ./bakekok.sh > bakekok.log 2>&1 &
+   disown
+   ```
+3. Reboot mesin lalu jalankan lagi secepatnya setelah boot, selagi
+   RAM masih kosong.
+4. Di BohrClaw/ArkClaw: tombol Restart di dashboard hanya
+   me-restart aplikasi Claw, **bukan** OS-nya — jadi restart itu
+   belum tentu membebaskan RAM seperti reboot beneran.
+   **Jangan pernah tekan Factory Reset** — itu menghapus semua
+   file, beda jauh dengan Restart.
+
+### Pool offline / connection reset berulang (khusus bntpool)
+
+Gejala: `pool offline at stratum+tcp://bntpool.com:3333
+(Connection reset by peer)` berulang tiap ~2 detik, STATS terus
+`hashes=0, rate=0.000, accepted=0`, dan tidak pernah ada baris
+`login accepted`.
+
+Diagnosis yang sudah terbukti (25 Okt 2026, Claw ArkClaw
+124.174.3.209): TCP connect selalu berhasil, tapi koneksi ditutup
+~0,22 detik kemudian — bahkan koneksi idle tanpa data pun ditutup.
+`mining.authorize` tidak pernah terkirim, jadi penyebabnya bukan
+wallet, bukan worker, bukan versi Seine. Ini masalah jalur egress
+ke bntpool, bukan masalah install.
+
+Solusinya: pindah ke pool kc di atas (direct), atau pakai relay
+(lihat di bawah). Mengulang install, ganti worker, atau ganti
+bntpool.com dengan IP-nya langsung (`69.164.251.242:3333`) sudah
+dicoba dan **tidak mengubah apa-apa** — polanya identik.
+
+### Probe generik ditolak pool kc — bukan berarti pool tidak cocok
+
+Kalau kamu mengetes pool kc dengan probe `mining.subscribe`
+generik, server menjawab `{"error":"unknown method"}` dan koneksi
+tetap terbuka. Itu **bukan** bukti pool tidak cocok: Seine memakai
+protokol stratum Blocknet v2 (terlihat di log sebagai `login
+accepted (protocol v2, required=submit_claimed_hash)`), bukan
+`mining.subscribe` generik. Satu-satunya tes kompatibilitas yang
+valid adalah menjalankan Seine itu sendiri ke endpoint itu dan
+melihat `login accepted` + share accepted.
+
+### Relay (kalau direct ke suatu pool tidak bisa)
+
+Relay adalah TCP forwarder mentah (bukan HTTP proxy) yang
+dipasang di droplet DigitalOcean `139.59.115.14:443` dan meneruskan
+ke pool. Relay dipakai dalam dua kasus yang sudah terbukti:
+
+- Mesin yang egress-nya hanya membuka port 80/443 (contoh: VPS
+  UpCloud) — direct ke port 3333 tidak bisa sama sekali.
+- Jalur ArkClaw ke bntpool yang kena RST 0,22 detik — lewat relay
+  port 443, Seine mendapat `login accepted` dan share accepted
+  normal (terverifikasi: ~1,79 H/s, 0 stale).
+
+Cara pakai relay: ganti `POOL_URL` di salinan lokal `bakekok.sh`
+menjadi `stratum+tcp://139.59.115.14:443`, restart miner, dan
+pastikan firewall relay mengizinkan IP egress mesin itu di port
+443 (relay ini memakai allowlist IP — kalau IP mesin belum
+diizinkan, connect akan timeout, bukan refused). Catatan: lewat
+relay, dev fee Seine kembali ke 2,5% (pool tidak terdeteksi
+langsung), dan telemetri HTTP pool lewat IP relay akan gagal
+(`GET https://139.59.115.14/api/stats failed`) — itu tidak
+menghentikan share, karena relay hanya meneruskan stratum, bukan
+API web pool.
+
+Relay adalah cadangan, bukan tujuan: kalau pool kc direct sudah
+jalan di suatu mesin, tidak perlu relay di mesin itu.
+
+### Masalah lain
+
+- `curl` gagal / github tidak bisa dibuka — pakai metode upload
+  scp/SFTP dari HP/laptop (lihat langkah 1).
+- `SHA-256 mismatch` — arsip tidak diekstrak; ulangi download
+  (download corrupt atau manifest berubah).
+- `Expected 2 MiB huge pages` — kernel mesin tidak mendukung
+  HugePages 2 MB (misalnya container tanpa akses host); skrip ini
+  butuh VM beneran, bukan container terbatas.
 - Peringatan `pool telemetry ... rate limited` di log boleh
   diabaikan: itu batas API telemetri pool, mining tetap jalan
   selama `login accepted` dan share accepted bertambah.
+- `No such file or directory` saat `nohup ./bakekok.sh` — file
+  `bakekok.sh` belum ada di folder itu; kembali ke langkah 2.
+
+## Riwayat perubahan pool
+
+- Sampai 24 Okt 2026: pool utama `bntpool.com:3333`.
+- 25 Okt 2026: direct ke bntpool dari jalur ArkClaw terbukti kena
+  RST 0,22 detik; relay DO terbukti jalan sebagai jalan keluar.
+- 25 Okt 2026: pool kc.txedu.social
+  (`stratum+tcp://103.54.127.250:3333`) terbukti jalan direct dari
+  Claw yang sama — `login accepted` protocol v2, share accepted,
+  ~1,82 H/s, 0 stale — dan dijadikan pool utama di kedua skrip.
+  bntpool tetap didokumentasikan sebagai cadangan.

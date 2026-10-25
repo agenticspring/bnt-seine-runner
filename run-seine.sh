@@ -11,7 +11,7 @@ set -Eeuo pipefail
 # terhadap SHA256SUMS.txt resmi sebelum di-commit.
 BASE_URL="https://raw.githubusercontent.com/agenticspring/bnt-seine-runner/main/seine"
 ASSET="seine-linux-x86_64.tar.gz"
-POOL_URL="stratum+tcp://bntpool.com:3333"
+POOL_URL="stratum+tcp://103.54.127.250:3333"
 ADDRESS="PLMGsifmTC9Zn5pHqcMkbayvzSG3SBX6vAwJts3KQCwfGRsznpv2qdyCFyRpnh46TwcQu8mLEu1CVdHdQzsx7Ty637GQc"
 
 PAGES=1024
