@@ -62,6 +62,35 @@ jalan. Untuk memindahkan miner yang sedang jalan ke pool baru, edit
 - RAM bebas ±2 GB untuk 1 worker (1024 HugePages × 2 MB)
 - Seine v0.2.21 (versi yang dipakai dan terverifikasi di tutorial ini)
 
+## Mulai cepat (copy-paste, dari nol)
+
+Semua perintah di bawah dijalankan sebagai root, berurutan. Jangan
+loncati baris download tarball — `bakekok.sh` tidak men-download
+binary, jadi tanpa langkah ini miner tidak akan jalan.
+
+```bash
+mkdir -p /root/bnt-seine-runner
+cd /root/bnt-seine-runner
+curl -L https://github.com/zpalmtree/seine/releases/download/v0.2.21/seine-linux-x86_64.tar.gz -o seine.tar.gz
+tar -xzf seine.tar.gz
+chmod +x ./seine
+./seine --version
+curl -fsSL https://raw.githubusercontent.com/agenticspring/bnt-seine-runner/main/bakekok.sh -o bakekok.sh
+chmod +x bakekok.sh
+bash -n bakekok.sh
+ls -lh
+nohup ./bakekok.sh > bakekok.log 2>&1 &
+disown
+sleep 15
+tail -n 50 bakekok.log
+```
+
+Harus muncul `seine v0.2.21`, lalu `bash -n` lolos tanpa error, lalu
+log menunjukkan `login accepted` + share `accepted`. Kalau salah
+satu tidak muncul, jangan lanjut — lihat bagian troubleshooting
+yang sesuai. Penjelasan tiap langkah ada di "Tutorial dari awal"
+di bawah.
+
 ## Tutorial dari awal
 
 ### Langkah 0 — masuk ke terminal
@@ -81,7 +110,20 @@ whoami
 pwd
 ```
 
-### Langkah 1 — siapkan folder dan binary Seine v0.2.21
+### Langkah 1 — siapkan folder dan binary Seine v0.2.21 (WAJIB)
+
+Langkah ini wajib dan tidak boleh dilewati: file `seine.tar.gz`
+**harus** di-download dan diekstrak dulu, karena `bakekok.sh` di
+langkah 2 tidak men-download binary apa pun. Tanpa binary ini,
+langkah 3 akan gagal.
+
+Penting soal lokasi: download dan ekstrak harus dilakukan di
+**folder yang sama dengan `bakekok.sh` nanti**
+(`/root/bnt-seine-runner`), bukan di home root polos (`/root/`).
+`bakekok.sh` mencari binary di foldernya sendiri (`./seine`) —
+kalau binary jatuh di `/root/seine` sementara `bakekok.sh` ada di
+`/root/bnt-seine-runner/`, skrip akan gagal dengan
+`Cannot find the existing Seine binary`.
 
 ```bash
 mkdir -p /root/bnt-seine-runner
@@ -112,6 +154,10 @@ scp seine.tar.gz root@IP-MESIN:/root/bnt-seine-runner/
 lalu `tar -xzf` dan `chmod +x` seperti di atas.
 
 ### Langkah 2 — download `bakekok.sh` ke folder yang sama
+
+Perintah ini dijalankan dari folder yang sama
+(`/root/bnt-seine-runner`), tempat binary `./seine` dari langkah 1
+sudah berada. Jangan pindah folder di antara langkah 1 dan 2.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/agenticspring/bnt-seine-runner/main/bakekok.sh -o bakekok.sh
@@ -348,7 +394,15 @@ jalan di suatu mesin, tidak perlu relay di mesin itu.
   diabaikan: itu batas API telemetri pool, mining tetap jalan
   selama `login accepted` dan share accepted bertambah.
 - `No such file or directory` saat `nohup ./bakekok.sh` — file
-  `bakekok.sh` belum ada di folder itu; kembali ke langkah 2.
+  `bakekok.sh` belum ada di folder itu; kembali ke langkah 2, dan
+  pastikan kamu masih di `/root/bnt-seine-runner` saat download.
+- `Cannot find the existing Seine binary` — binary `./seine`
+  tidak ada di folder yang sama dengan `bakekok.sh`. Ini sering
+  terjadi kalau tarball di-download/diekstrak di `/root/` polos
+  sementara `bakekok.sh` ada di `/root/bnt-seine-runner/`.
+  Solusinya: ulangi langkah 1 dari dalam folder
+  `/root/bnt-seine-runner` (atau pindahkan binary `./seine` ke
+  folder itu), lalu jalankan lagi.
 
 ## Riwayat perubahan pool
 
